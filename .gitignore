@@ -219,6 +219,8 @@ __marimo__/
 
 # SynAgent
 outputs/
-# Generated at campaign start on the instrument PC - not tracked
+# Generated analysis skills and user-supplied reference files - not tracked
 synagent/preprocess/skills/*
 !synagent/preprocess/skills/.gitkeep
+synagent/preprocess/ref/*
+!synagent/preprocess/ref/.gitkeep
