@@ -39,12 +39,11 @@ def parse_args():
     parser.add_argument('--no_prompt_log', action='store_true',
                         help='Disable per-call prompt logging. By default, every LLM prompt and response is appended to {run_dir}/prompts/iterNN_{role}.log. Set the SYNAGENT_PROMPT_LOG_DIR env var to override the location; this flag wins over the env var.')
     # Session memory (persistent LLM conversation per run_dir)
-    parser.add_argument('--session_memory',
-                        action=argparse.BooleanOptionalAction, default=True,
-                        help='Run proposal/reflection/understanding turns in a persistent LLM session '
-                             'stored in {run_dir}/session.db, so recent SEM images from earlier iterations '
-                             'stay visually available for comparison. Start a campaign with this setting '
-                             'and keep it unchanged. Use --no_session_memory for the response_id-chained behavior.')
+    parser.add_argument('--no_session_memory', dest='session_memory', action='store_false',
+                        help='Disable the persistent LLM session. By default, proposal/reflection/understanding '
+                             'turns share one session stored in {run_dir}/session.db, so recent SEM images from '
+                             'earlier iterations stay visually available for comparison. Start a campaign with '
+                             'one setting and keep it unchanged; this flag switches to response_id chaining.')
     parser.add_argument('--session_max_images', type=int, default=3,
                         help='Max number of most-recent SEM images replayed from the session on each call; '
                              'older images are replaced by a text placeholder (their sem_observation text remains). '

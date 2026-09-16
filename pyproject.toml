@@ -18,7 +18,7 @@ dependencies = [
     "scipy",
     "pandas",
     "openai",
-    "openai-agents",
+    "openai-agents>=0.19",
     "matplotlib",
     "pillow",
     "python-dotenv",

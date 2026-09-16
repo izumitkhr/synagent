@@ -58,6 +58,7 @@ def preprocess(output_dir, maiml_path, run_dir, inputs_yaml_rel,
     )
     from synagent.main import load_inputs_yaml
 
+    os.makedirs(output_dir, exist_ok=True)
     inputs = load_inputs_yaml(os.path.join(run_dir, inputs_yaml_rel))
     target_cfg = inputs.get('target_variable') or {}
     pinned_skill = target_cfg.get('skill')
