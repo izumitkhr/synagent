@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synagent"
+version = "1.0.0"
+description = "Hypothesis-driven autonomous materials synthesis with multimodal LLM agents"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Izumi Takahara" },
+]
+dependencies = [
+    "PyYAML",
+    "numpy",
+    "scipy",
+    "pandas",
+    "openai",
+    "openai-agents",
+    "matplotlib",
+    "pillow",
+    "python-dotenv",
+]
+
+[project.urls]
+Repository = "https://github.com/izumitkhr/synagent"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["synagent*"]

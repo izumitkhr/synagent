@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SynAgent
+outputs/
+# Generated at campaign start on the instrument PC - not tracked
+synagent/preprocess/skills/*
+!synagent/preprocess/skills/.gitkeep
