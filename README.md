@@ -7,12 +7,15 @@ SynAgent is a closed-loop experimental planning agent for autonomous thin-film s
 If you use this code in your research, please cite:
 
 ```bibtex
-@article{takahara2026synagent,
-  title   = {Hypothesis-Driven Autonomous Materials Synthesis with Multimodal LLM Agents},
-  author  = {Takahara, Izumi and Nishio, Kazunori and Aiba, Akira and Kobayashi, Shigeru
-             and Nakajima, Takao and Hitosugi, Taro and Mizoguchi, Teruyasu},
-  year    = {2026},
-  note    = {Submitted}
+@misc{takahara2026synagent,
+  title         = {Hypothesis-Driven Autonomous Materials Synthesis with Multimodal LLM Agents},
+  author        = {Takahara, Izumi and Nishio, Kazunori and Aiba, Akira and Kobayashi, Shigeru
+                   and Nakajima, Takao and Hitosugi, Taro and Mizoguchi, Teruyasu},
+  year          = {2026},
+  eprint        = {2609.18598},
+  archivePrefix = {arXiv},
+  primaryClass  = {cond-mat.mtrl-sci},
+  url           = {https://arxiv.org/abs/2609.18598}
 }
 ```
 
