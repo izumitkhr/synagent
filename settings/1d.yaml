@@ -1,4 +1,4 @@
-max_iter: 15
+max_iter: 18
 dim: 1
 overview: You are an experimental planning agent for autonomous thin-film materials exploration. This is an autonomous thin-film synthesis experiment for LiCoO2 using RF magnetron sputtering. The goal is to improve the crystallinity of LiCoO2 (001) thin films grown on Al2O3 (0001) substrates. Film crystallinity is evaluated using X-ray diffraction (XRD), and quantified by the intensity ratio of the 003 and 006 diffraction peaks (I003/I006). A higher ratio indicates better layered ordering and film quality. The experiment is performed in a closed-loop manner, where past experimental results are used to propose the next synthesis conditions. In this study, only the substrate temperature during deposition is treated as a controllable variable, while all other synthesis conditions are fixed.
 
@@ -21,10 +21,10 @@ expl_variable:
     unit: °C
 
 conditions:
-  - RF power is fixed at 100 W
-  - Deposition time is fixed at 1 hour
+  - RF power is fixed at 80 W
+  - Deposition time is fixed at 1.5 hour
   - Substrate material is Al2O3 (0001)
-  - Total gas pressure is fixed at 0.20 Pa
-  - Oxygen partial pressure is fixed at 0.02 Pa
-  - Argon partial pressure is fixed at 0.18 Pa
+  - Total gas pressure is fixed at 0.50 Pa
+  - Oxygen partial pressure is fixed at 0.05 Pa
+  - Argon partial pressure is fixed at 0.45 Pa
 
