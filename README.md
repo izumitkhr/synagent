@@ -15,7 +15,7 @@ cp .env.example .env   # set OPENAI_API_KEY
 python run.py --run_dir <RUN_DIR> --input_yaml <INSTRUCTION_FILE> --raw_data_dir <INSTRUMENT_DATA_DIR>
 ```
 
-`run.py` is called once per closed-loop iteration. It reads the XRD `*.maiml` file in `run_dir`, computes the target value, and writes the next proposal to `run_dir/output.txt`. An example instruction file is given in `settings/1d.yaml`. Reference files used during skill generation (e.g. nominal XRD peak positions, as `.txt`) should be placed in `synagent/preprocess/ref/`. See `python run.py --help` for options.
+`run.py` is called once per closed-loop iteration. It reads the XRD `*.maiml` file in `run_dir`, computes the target value, and writes the next proposal to `run_dir/output.txt`. An example instruction file is given in `settings/1d.yaml`. Reference files used during skill generation (e.g. nominal XRD peak positions, as `.txt`) should be placed in `synagent/preprocess/ref/`. All LLM calls use the same reasoning effort and verbosity, set by `--reasoning_effort` and `--verbosity` (defaults: `medium` and `low`). See `python run.py --help` for options.
 
 ## Platform
 

@@ -13,6 +13,10 @@ load_dotenv(os.path.join(ROOT, '.env'))
 
 from synagent.preprocess.preprocess import preprocess
 from synagent.main import main as run_inference
+from synagent.core.llm import (
+    DEFAULT_REASONING_EFFORT, DEFAULT_VERBOSITY, REASONING_EFFORT_CHOICES,
+    VERBOSITY_CHOICES, get_reasoning_effort, get_verbosity,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,17 @@ def parse_args():
                              'Default: the single *.maiml in run_dir.')
     parser.add_argument('--llm_model_skill', type=str, default='gpt-5.5',
                         help='LLM model used for skill selection / generation.')
+    parser.add_argument('--reasoning_effort', type=str, default=None,
+                        choices=REASONING_EFFORT_CHOICES,
+                        help='Reasoning effort applied uniformly to every LLM call (proposal, reflection, '
+                             'understanding, skill selection/generation; session and non-session modes). '
+                             f'Default: the SYNAGENT_REASONING_EFFORT env var, else "{DEFAULT_REASONING_EFFORT}". '
+                             'This flag wins over the env var.')
+    parser.add_argument('--verbosity', type=str, default=None,
+                        choices=VERBOSITY_CHOICES,
+                        help='Output verbosity applied uniformly to every LLM call, like --reasoning_effort. '
+                             f'Default: the SYNAGENT_VERBOSITY env var, else "{DEFAULT_VERBOSITY}". '
+                             'This flag wins over the env var.')
     return parser.parse_args()
 
 
@@ -151,6 +166,15 @@ def main():
         os.environ.pop('SYNAGENT_PROMPT_LOG_DIR', None)
     elif 'SYNAGENT_PROMPT_LOG_DIR' not in os.environ:
         os.environ['SYNAGENT_PROMPT_LOG_DIR'] = os.path.join(run_dir, 'prompts')
+
+    # Reasoning effort / verbosity precedence: CLI flag > existing env var >
+    # DEFAULT_*. Every LLM call reads them from the env vars.
+    if args.reasoning_effort is not None:
+        os.environ['SYNAGENT_REASONING_EFFORT'] = args.reasoning_effort
+    if args.verbosity is not None:
+        os.environ['SYNAGENT_VERBOSITY'] = args.verbosity
+    logger.info('Reasoning effort: %s, verbosity: %s',
+                get_reasoning_effort(), get_verbosity())
 
     if args.generate_skill:
         from synagent.preprocess.skill_generation import generate_skill

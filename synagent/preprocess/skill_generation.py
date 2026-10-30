@@ -36,7 +36,9 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel
 
-from synagent.core.llm import call_llm, _image_data_url
+from synagent.core.llm import (
+    call_llm, _image_data_url, get_reasoning_effort, get_verbosity,
+)
 from synagent.main import load_inputs_yaml
 from synagent.preprocess.preprocess import REF_DIR
 
@@ -689,7 +691,9 @@ def _agentic_generate(prompt, maiml_path, ref_dir, llm_model, max_tool_calls=20,
     model still does not finalize.
     """
     from agents import Agent, Runner, function_tool, set_tracing_disabled
-    from synagent.core.llm import configure_agents_default_client
+    from synagent.core.llm import (
+        configure_agents_default_client, get_agents_run_config,
+    )
 
     set_tracing_disabled(True)
     configure_agents_default_client()
@@ -741,7 +745,8 @@ def _agentic_generate(prompt, maiml_path, ref_dir, llm_model, max_tool_calls=20,
                   f"{', '.join(str(p) for p in image_paths)}]" if image_paths else "")
     _agentic_log(
         f"\n{'=' * 78}\n[{stamp}] AGENTIC SKILL GENERATION  tag={log_tag} "
-        f"model={llm_model} maiml={Path(maiml_path).name}\n{'=' * 78}\n"
+        f"model={llm_model} reasoning_effort={get_reasoning_effort()} "
+        f"verbosity={get_verbosity()} maiml={Path(maiml_path).name}\n{'=' * 78}\n"
         f"\n--- INITIAL PROMPT ---{image_note}\n{prompt}\n"
     )
     if image_paths:
@@ -754,7 +759,8 @@ def _agentic_generate(prompt, maiml_path, ref_dir, llm_model, max_tool_calls=20,
     else:
         llm_input = prompt
     # max_turns counts model invocations: 1 initial + one per tool round + final.
-    result = Runner.run_sync(agent, llm_input, max_turns=max_tool_calls + 2)
+    result = Runner.run_sync(agent, llm_input, max_turns=max_tool_calls + 2,
+                             run_config=get_agents_run_config())
     spec = result.final_output
     raw = json.dumps(spec.model_dump(), ensure_ascii=False)
     _agentic_log(f"\n--- FINAL OUTPUT ---\n{raw}\n")
@@ -832,6 +838,8 @@ def generate_skill(run_dir, input_yaml_rel, max_retries=2, llm_model="gpt-5.5",
                 _agentic_log(
                     f"\n{'=' * 78}\n[{stamp}] SINGLE-SHOT SKILL GENERATION  "
                     f"attempt={i + 1} model={llm_model} "
+                    f"reasoning_effort={get_reasoning_effort()} "
+                    f"verbosity={get_verbosity()} "
                     f"maiml={Path(maiml_path).name}\n{'=' * 78}\n"
                     f"\n--- PROMPT ---\n{prompt}\n"
                 )

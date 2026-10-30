@@ -15,7 +15,63 @@ logger = logging.getLogger(__name__)
 LLM_TIMEOUT_SECONDS = float(os.environ.get("SYNAGENT_LLM_TIMEOUT", "180"))
 LLM_MAX_RETRIES = int(os.environ.get("SYNAGENT_LLM_MAX_RETRIES", "5"))
 
+# Reasoning effort and verbosity sent explicitly on every call, so the
+# Responses API path and the Agents SDK path run under the same settings
+# (neither the server's nor the SDK's per-model implicit default is relied on).
+DEFAULT_REASONING_EFFORT = "medium"
+REASONING_EFFORT_CHOICES = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
+DEFAULT_VERBOSITY = "low"
+VERBOSITY_CHOICES = ("low", "medium", "high")
+
 _agents_client_configured = False
+
+
+def get_reasoning_effort():
+    """Return the reasoning effort for LLM calls (``SYNAGENT_REASONING_EFFORT``).
+
+    Read at call time so that run.py's --reasoning_effort, which sets the env
+    var after this module is imported, takes effect.
+    """
+    return _get_choice_env("SYNAGENT_REASONING_EFFORT",
+                           DEFAULT_REASONING_EFFORT, REASONING_EFFORT_CHOICES)
+
+
+def get_verbosity():
+    """Return the output verbosity for LLM calls (``SYNAGENT_VERBOSITY``).
+
+    Read at call time, like get_reasoning_effort().
+    """
+    return _get_choice_env("SYNAGENT_VERBOSITY", DEFAULT_VERBOSITY,
+                           VERBOSITY_CHOICES)
+
+
+def _get_choice_env(name, default, choices):
+    """Read env var ``name`` (else ``default``), rejecting values not in ``choices``.
+
+    Guards values set via .env, which bypass argparse's choices check.
+    """
+    value = os.environ.get(name, default)
+    if value not in choices:
+        raise ValueError(
+            f"{name}={value!r} is invalid; choose from {', '.join(choices)}."
+        )
+    return value
+
+
+def get_agents_run_config():
+    """Agents SDK RunConfig carrying the same effort/verbosity as call_llm.
+
+    Passed to Runner rather than Agent(model_settings=...): the SDK treats
+    Agent settings equal to its implicit per-model defaults as "unset" and
+    re-derives them from the model name, whereas RunConfig.model_settings is
+    always overlaid on top.
+    """
+    from agents import ModelSettings, RunConfig
+    from openai.types.shared import Reasoning
+    return RunConfig(model_settings=ModelSettings(
+        reasoning=Reasoning(effort=get_reasoning_effort()),
+        verbosity=get_verbosity(),
+    ))
 
 
 def configure_agents_default_client():
@@ -52,7 +108,8 @@ def _log_prompt_to_file(log_dir, log_tag, llm_model, format, previous_response_i
         f.write("=" * 78 + "\n")
         f.write(
             f"[{datetime.datetime.now().isoformat(timespec='seconds')}] "
-            f"model={llm_model} format={format} chained={bool(previous_response_id)}"
+            f"model={llm_model} reasoning_effort={get_reasoning_effort()} "
+            f"verbosity={get_verbosity()} format={format} chained={bool(previous_response_id)}"
         )
         if previous_response_id:
             f.write(f" previous_response_id={previous_response_id}")
@@ -79,9 +136,11 @@ def call_llm(prompt, llm_model="gpt-5.5", format=None, previous_response_id=None
     """
     chained_note = " (chained)" if previous_response_id else ""
     image_note = f" (+{len(image_paths)} image(s))" if image_paths else ""
+    reasoning_effort = get_reasoning_effort()
+    verbosity = get_verbosity()
     logger.info(
-        "Calling LLM (model=%s, format=%s)%s%s...",
-        llm_model, format, chained_note, image_note,
+        "Calling LLM (model=%s, reasoning_effort=%s, verbosity=%s, format=%s)%s%s...",
+        llm_model, reasoning_effort, verbosity, format, chained_note, image_note,
     )
     client = openai.OpenAI(timeout=LLM_TIMEOUT_SECONDS,
                            max_retries=LLM_MAX_RETRIES)
@@ -94,11 +153,13 @@ def call_llm(prompt, llm_model="gpt-5.5", format=None, previous_response_id=None
         llm_input = [{"role": "user", "content": content}]
     else:
         llm_input = prompt
-    kwargs = {"model": llm_model, "input": llm_input}
+    kwargs = {"model": llm_model, "input": llm_input,
+              "reasoning": {"effort": reasoning_effort},
+              "text": {"verbosity": verbosity}}
     if previous_response_id:
         kwargs["previous_response_id"] = previous_response_id
     if format == "json_object":
-        kwargs["text"] = {"format": {"type": "json_object"}}
+        kwargs["text"]["format"] = {"type": "json_object"}
     elif format is not None:
         raise ValueError(f"format={format} is not supported!")
 

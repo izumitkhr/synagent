@@ -20,6 +20,7 @@ from agents import Agent, Runner, SQLiteSession, set_tracing_disabled
 
 from synagent.core.llm import (
     _image_data_url, _log_prompt_to_file, configure_agents_default_client,
+    get_agents_run_config, get_reasoning_effort, get_verbosity,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,8 +102,10 @@ def call_llm_session(prompt, session, llm_model="gpt-5.5",
     configure_agents_default_client()
     image_note = f" (+{len(image_paths)} image(s))" if image_paths else ""
     logger.info(
-        "Calling LLM in session (model=%s, output=%s)%s...",
-        llm_model, output_type.__name__ if output_type else "text", image_note,
+        "Calling LLM in session (model=%s, reasoning_effort=%s, verbosity=%s, "
+        "output=%s)%s...",
+        llm_model, get_reasoning_effort(), get_verbosity(),
+        output_type.__name__ if output_type else "text", image_note,
     )
     if image_paths:
         content = [{"type": "input_text", "text": prompt}]
@@ -120,7 +123,8 @@ def call_llm_session(prompt, session, llm_model="gpt-5.5",
     # (explore_data 5 + create_skill 1 + several use_skill calls).
     max_turns = 16 if tools else 10
     result = Runner.run_sync(agent, llm_input, session=session,
-                             max_turns=max_turns)
+                             max_turns=max_turns,
+                             run_config=get_agents_run_config())
     if output_type is not None:
         output = result.final_output.model_dump()
         raw = json.dumps(output, ensure_ascii=False)
