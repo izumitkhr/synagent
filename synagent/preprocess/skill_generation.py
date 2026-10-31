@@ -691,12 +691,9 @@ def _agentic_generate(prompt, maiml_path, ref_dir, llm_model, max_tool_calls=20,
     model still does not finalize.
     """
     from agents import Agent, Runner, function_tool, set_tracing_disabled
-    from synagent.core.llm import (
-        configure_agents_default_client, get_agents_run_config,
-    )
+    from synagent.core.llm import get_agents_run_config
 
     set_tracing_disabled(True)
-    configure_agents_default_client()
     state = {"step": 0}
 
     @function_tool

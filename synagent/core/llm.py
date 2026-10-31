@@ -23,8 +23,6 @@ REASONING_EFFORT_CHOICES = ("none", "minimal", "low", "medium", "high", "xhigh",
 DEFAULT_VERBOSITY = "low"
 VERBOSITY_CHOICES = ("low", "medium", "high")
 
-_agents_client_configured = False
-
 
 def get_reasoning_effort():
     """Return the reasoning effort for LLM calls (``SYNAGENT_REASONING_EFFORT``).
@@ -59,34 +57,31 @@ def _get_choice_env(name, default, choices):
 
 
 def get_agents_run_config():
-    """Agents SDK RunConfig carrying the same effort/verbosity as call_llm.
+    """Agents SDK RunConfig carrying the same client/effort/verbosity as call_llm.
 
     Passed to Runner rather than Agent(model_settings=...): the SDK treats
     Agent settings equal to its implicit per-model defaults as "unset" and
     re-derives them from the model name, whereas RunConfig.model_settings is
     always overlaid on top.
+
+    Each call gets a fresh AsyncOpenAI client (as call_llm does). A shared
+    client pools connections bound to the event loop they were opened on,
+    and with openai>=3 reusing them from another loop fails ("bound to a
+    different event loop"), e.g. reflection's create_skill tool running
+    nested skill generation in its own thread.
     """
-    from agents import ModelSettings, RunConfig
-    from openai.types.shared import Reasoning
-    return RunConfig(model_settings=ModelSettings(
-        reasoning=Reasoning(effort=get_reasoning_effort()),
-        verbosity=get_verbosity(),
-    ))
-
-
-def configure_agents_default_client():
-    """Point the Agents SDK at an AsyncOpenAI client with our timeout/retry (idempotent)."""
-    global _agents_client_configured
-    if _agents_client_configured:
-        return
+    from agents import ModelSettings, OpenAIProvider, RunConfig
     from openai import AsyncOpenAI
-    from agents import set_default_openai_client
-    set_default_openai_client(
-        AsyncOpenAI(timeout=LLM_TIMEOUT_SECONDS, max_retries=LLM_MAX_RETRIES)
+    from openai.types.shared import Reasoning
+    client = AsyncOpenAI(timeout=LLM_TIMEOUT_SECONDS,
+                         max_retries=LLM_MAX_RETRIES)
+    return RunConfig(
+        model_provider=OpenAIProvider(openai_client=client),
+        model_settings=ModelSettings(
+            reasoning=Reasoning(effort=get_reasoning_effort()),
+            verbosity=get_verbosity(),
+        ),
     )
-    _agents_client_configured = True
-    logger.info("LLM client: timeout=%.0fs, max_retries=%d",
-                LLM_TIMEOUT_SECONDS, LLM_MAX_RETRIES)
 
 
 def _image_data_url(image_path):

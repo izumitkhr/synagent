@@ -14,13 +14,13 @@ import asyncio
 import json
 import logging
 import os
+import warnings
 from pathlib import Path
 
 from agents import Agent, Runner, SQLiteSession, set_tracing_disabled
 
 from synagent.core.llm import (
-    _image_data_url, _log_prompt_to_file, configure_agents_default_client,
-    get_agents_run_config, get_reasoning_effort, get_verbosity,
+    _image_data_url, _log_prompt_to_file, get_agents_run_config, get_reasoning_effort, get_verbosity,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,9 +83,30 @@ def get_session(run_dir, max_images=3):
     return TrimmedImageSession(SESSION_ID, db_path, max_images=max_images)
 
 
+def _run_on_default_loop(coro):
+    """Run ``coro`` on the thread's default event loop, as Runner.run_sync does.
+
+    asyncio.run() would instead unset the default loop on exit, so the next
+    run_sync starts a fresh loop while the shared AsyncOpenAI client still
+    holds pooled connections bound to the old one ("bound to a different
+    event loop"), e.g. when skill generation precedes the reflection turn.
+    """
+    policy = asyncio.get_event_loop_policy()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        try:
+            loop = policy.get_event_loop()
+        except RuntimeError:
+            loop = None
+    if loop is None or loop.is_closed():
+        loop = policy.new_event_loop()
+        policy.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+
 def session_has_items(session):
     """True if the session already contains prior conversation turns."""
-    return bool(asyncio.run(session.get_items(1)))
+    return bool(_run_on_default_loop(session.get_items(1)))
 
 
 def call_llm_session(prompt, session, llm_model="gpt-5.5",
@@ -99,7 +120,6 @@ def call_llm_session(prompt, session, llm_model="gpt-5.5",
     the SDK enforce the output schema and returns the validated dict;
     without it, the final text is returned as-is.
     """
-    configure_agents_default_client()
     image_note = f" (+{len(image_paths)} image(s))" if image_paths else ""
     logger.info(
         "Calling LLM in session (model=%s, reasoning_effort=%s, verbosity=%s, "
