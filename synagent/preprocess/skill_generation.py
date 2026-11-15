@@ -826,10 +826,21 @@ def generate_skill(run_dir, input_yaml_rel, max_retries=2, llm_model="gpt-5.5",
                                   agentic=agentic, extra_request=extra_request,
                                   attached_images=[p.name for p in raw_images])
             if agentic:
-                response = _agentic_generate(prompt, maiml_path, REF_DIR, llm_model,
-                                             max_tool_calls=max_tool_calls,
-                                             log_tag=f"attempt{i + 1}",
-                                             image_paths=vision_paths or None)
+                from agents.exceptions import MaxTurnsExceeded
+                try:
+                    response = _agentic_generate(prompt, maiml_path, REF_DIR, llm_model,
+                                                 max_tool_calls=max_tool_calls,
+                                                 log_tag=f"attempt{i + 1}",
+                                                 image_paths=vision_paths or None)
+                except MaxTurnsExceeded as e:
+                    # No candidate skill was produced, so there is nothing new
+                    # to feed back: retry with the previous failure context
+                    # (if any) unchanged, consuming one attempt.
+                    logger.warning("Attempt %d produced no skill (turn limit "
+                                   "exceeded): %s", i + 1, e)
+                    _agentic_log(f"\n--- ATTEMPT {i + 1} ABORTED (turn limit "
+                                 f"exceeded) ---\n{e}\n")
+                    continue
             else:
                 stamp = datetime.datetime.now().isoformat(timespec="seconds")
                 _agentic_log(
