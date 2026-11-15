@@ -559,6 +559,20 @@ def write_skill(name, skill_md, analyze_py):
     return skill_dir
 
 
+def _quarantine_failed_skill(skill_dir, attempt):
+    """Rename a skill dir that failed its self-test to ``_failed_<name>_<stamp>_a<n>``.
+
+    The leading underscore excludes it from the library
+    (_list_skills_with_metadata), while keeping the code for inspection.
+    Returns the new path.
+    """
+    stamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+    dest = skill_dir.parent / f"_failed_{skill_dir.name}_{stamp}_a{attempt}"
+    skill_dir.rename(dest)
+    logger.warning("Moved failed skill out of the library: %s", dest.name)
+    return dest
+
+
 def test_skill(skill_dir, maiml_path, ref_dir, target_field=NOT_TARGET):
     """Import the generated analyze.py and run analyze() on the sample MaiML.
 
@@ -925,6 +939,12 @@ def generate_skill(run_dir, input_yaml_rel, max_retries=2, llm_model="gpt-5.5",
             _agentic_log(f"\n--- ATTEMPT {i + 1} SELF-TEST FAILED ---\n{error}\n")
             previous_attempt = {"skill_md": skill_md, "analyze_py": analyze_py}
             previous_error = error
+            # Move the broken attempt out of the library right away (later
+            # attempts may pick a different name, so this cannot wait for the
+            # end): otherwise a pinned target skill would be found as
+            # "existing" on the next run and never regenerated, and the
+            # reflection catalog would advertise it.
+            skill_dir = _quarantine_failed_skill(skill_dir, i + 1)
     finally:
         shutil.rmtree(vision_tmp, ignore_errors=True)
         _GEN_SINK = None
@@ -934,6 +954,6 @@ def generate_skill(run_dir, input_yaml_rel, max_retries=2, llm_model="gpt-5.5",
         _write_generation_log(
             skill_dir, sink,
             f"FAILED after {attempts} attempt(s) — this dir holds the last "
-            f"(broken) attempt",
+            f"(broken) attempt, moved out of the skill library",
         )
     return skill_dir, None
