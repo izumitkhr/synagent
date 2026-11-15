@@ -463,9 +463,9 @@ def _select_skill_via_llm(skills, maiml_path, inputs_yaml_rel, run_dir, llm_mode
     )
 
     parts.append(
-        "Respond with JSON: "
-        "{\"skill_name\": <name from the list or null>, "
-        "\"rationale\": \"<one sentence>\"}. "
+        "Respond with JSON, keys in this order: "
+        "{\"reasoning\": \"<one sentence, written before choosing>\", "
+        "\"skill_name\": <name from the list or null>}. "
         "Use null for skill_name only when no listed skill applies."
     )
     prompt = "\n\n".join(parts)
@@ -475,8 +475,8 @@ def _select_skill_via_llm(skills, maiml_path, inputs_yaml_rel, run_dir, llm_mode
         logger.warning("Skill selection: non-dict response %r", response)
         return None
     name = response.get("skill_name")
-    rationale = response.get("rationale", "")
-    logger.info("Skill selection: %r (%s)", name, rationale)
+    reasoning = response.get("reasoning", "")
+    logger.info("Skill selection: %r (%s)", name, reasoning)
     if not name:
         return None
     for d, _meta in skills:

@@ -27,16 +27,18 @@ def _proposal_output_type(dim):
     """Build the proposal turn's output model for the given dimensionality.
 
     The expl_1..expl_{dim} keys depend on the campaign config, so the model
-    is created at runtime; field order matches the prompt's reasoning order.
+    is created at runtime. Field order is generation order: the reasoning
+    precedes the committed condition and prediction, so they
+    are derived from it rather than justified after the fact.
     """
     fields = {f"expl_{i + 1}": (float, ...) for i in range(dim)}
     return create_model(
         "ProposalOut",
         mode=(Literal["verify", "falsify"], ...),
         hypothesis=(str, ...),
+        reasoning=(str, ...),
         **fields,
         expected_target=(float, ...),
-        reason=(str, ...),
     )
 
 

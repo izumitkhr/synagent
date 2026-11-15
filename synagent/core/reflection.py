@@ -18,14 +18,15 @@ logger = logging.getLogger(__name__)
 class ReflectionOut(BaseModel):
     """Structured output of the reflection turn (session mode).
 
-    Field order is generation order: verdict and reasoning first, then the
-    SEM observation, and the abduction last so it can draw on the
-    morphological evidence. ``sem_observation`` is null when no SEM image was
-    attached; ``abduction`` is null when supported.
+    Field order is generation order: the SEM observation first, then the
+    reasoning that grounds the judgement in it (and in the expected vs
+    actual target), then the verdict, and the abduction last.
+    ``sem_observation`` is null when no SEM image was attached;
+    ``abduction`` is null when supported.
     """
-    judged_as: Literal["supported", "refuted"]
-    reasoning: str
     sem_observation: str | None
+    reasoning: str
+    judged_as: Literal["supported", "refuted"]
     abduction: str | None
 
 

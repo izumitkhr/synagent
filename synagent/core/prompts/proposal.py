@@ -111,7 +111,7 @@ Follow this decision procedure:
 2. Choose an experimental condition that fits the mode block above and that genuinely tests this hypothesis.
 3. Predict the expected target value if your current understanding is correct. This prediction will later be compared against the actual measurement to judge whether your understanding is supported or refuted, so it must be a concrete number — not a range or a hedge.
 4. Check the candidate against the allowed grid values and any hard constraints; fix if it violates them.
-5. Briefly explain: which hypothesis is being tested, why the chosen condition fits the mode, and how you derived the expected target.
+5. Write this reasoning (which hypothesis is being tested, why the chosen condition fits the mode, and how you derive the expected target) in 'reasoning' BEFORE the expl_* values and expected_target, so that the committed condition and prediction follow from it.
 """
 
 
@@ -132,9 +132,9 @@ def get_output_format(mode, inputs):
   {{
     'mode': '{mode}',
     'hypothesis': '<the specific claim from the current understanding that this experiment will test; reference the underlying physical/chemical mechanism whenever your understanding articulates one>',
+    'reasoning': '<written BEFORE committing to the values below: which hypothesis is being tested, which condition fits the mode and why, and how the expected target follows from your current understanding>',
 {expl_lines}
-    'expected_target': <number; your point prediction for {target_desc}, in the same units as shown in the setup above>,
-    'reason': '<rationale: which hypothesis is being tested, why the chosen expl_* fits the mode, and how you derived the expected_target>'
+    'expected_target': <number; your point prediction for {target_desc}, in the same units as shown in the setup above, consistent with the derivation in 'reasoning'>
   }}
 - Only output the JSON object. Do not include any other text.
 - 'mode' MUST be exactly '{mode}'.

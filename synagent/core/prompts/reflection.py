@@ -11,12 +11,32 @@ Use it as complementary morphological evidence when judging the outcome:
 
 
 def get_sem_output_line(with_sem_image):
+    """Leading ``sem_observation`` entry of the output object (or "")."""
     if with_sem_image:
         return (
-            ', "sem_observation": "<concise description of the film morphology '
-            'seen in the attached SEM image and how it informs the judgement>"'
+            '"sem_observation": "<concise description of the film morphology '
+            'seen in the attached SEM image>", '
         )
     return ""
+
+
+def get_output_object(with_sem_image):
+    """Output JSON object in generation order: observation -> reasoning -> verdict -> abduction."""
+    sem_line = get_sem_output_line(with_sem_image)
+    evidence = ("the expected vs actual target and the SEM observation"
+                if with_sem_image else "the expected vs actual target")
+    return (
+        f'{{{sem_line}"reasoning": "<the basis for the judgement, grounded in '
+        f'{evidence}, in light of the mode and the hypothesis>", '
+        '"judged_as": "supported" | "refuted", '
+        '"abduction": "<plausible explanation when refuted, or null when supported>"}'
+    )
+
+
+OUTPUT_RULES = """- Keep the keys in this order: write the reasoning first and derive "judged_as" from it.
+- Only output the JSON object. Do not include any other text.
+- "reasoning" and "abduction" should be Markdown strings. Set "abduction" to null when "judged_as" is "supported".
+"""
 
 
 def get_task(last_entry, understanding):
@@ -58,12 +78,9 @@ Decision procedure:
 
 
 def get_output_format(with_sem_image=False):
-    sem_line = get_sem_output_line(with_sem_image)
     return f"""- Output format: A single JSON object with the following structure:
-  {{"judged_as": "supported" | "refuted", "reasoning": "<why>"{sem_line}, "abduction": "<plausible explanation when refuted, or null when supported>"}}
-- Only output the JSON object. Do not include any other text.
-- "reasoning" and "abduction" should be Markdown strings. Set "abduction" to null when "judged_as" is "supported".
-"""
+  {get_output_object(with_sem_image)}
+{OUTPUT_RULES}"""
 
 
 def get_prompt(inputs, history, understanding, with_sem_image=False):
@@ -93,7 +110,6 @@ def get_chained_prompt(last_entry, with_sem_image=False):
     """
     actual = last_entry.get("target")
     sem_block = SEM_IMAGE_BLOCK if with_sem_image else ""
-    sem_line = get_sem_output_line(with_sem_image)
     return f"""The experiment you just proposed has now been carried out.
 
 Actual measured target: {actual}
@@ -109,7 +125,5 @@ Decision procedure:
 4. If supported, briefly state which claim is now more strongly backed by this experiment, and avoid over-extrapolating. When the supported claim references a specific physical / chemical mechanism, say explicitly that this mechanism is now more strongly supported in the tested regime (without over-generalising to untested regimes).
 
 Output requirements:
-- Output a single JSON object: {{"judged_as": "supported" | "refuted", "reasoning": "<why>"{sem_line}, "abduction": "<plausible explanation when refuted, or null when supported>"}}
-- Only output the JSON object. Do not include any other text.
-- "reasoning" and "abduction" should be Markdown strings. Set "abduction" to null when "judged_as" is "supported".
-"""
+- Output a single JSON object: {get_output_object(with_sem_image)}
+{OUTPUT_RULES}"""
