@@ -23,18 +23,22 @@ class UnderstandingOut(BaseModel):
     understanding: str
 
 
-def _proposal_output_type(dim):
+def _proposal_output_type(dim, mode):
     """Build the proposal turn's output model for the given dimensionality.
 
     The expl_1..expl_{dim} keys depend on the campaign config, so the model
     is created at runtime. Field order is generation order: the reasoning
     precedes the committed condition and prediction, so they
     are derived from it rather than justified after the fact.
+
+    ``mode`` is the one picked by pick_mode() for this turn; the schema only
+    admits that value, so the model commits to the right mode first and the
+    hypothesis, reasoning and prediction are generated under it.
     """
     fields = {f"expl_{i + 1}": (float, ...) for i in range(dim)}
     return create_model(
         "ProposalOut",
-        mode=(Literal["verify", "falsify"], ...),
+        mode=(Literal[mode], ...),
         hypothesis=(str, ...),
         reasoning=(str, ...),
         **fields,
@@ -57,7 +61,7 @@ def update_history(history, inputs, understanding, mode, llm_model="gpt-5.5", lo
         from synagent.core.session_llm import call_llm_session
         output, response_id = call_llm_session(
             prompt, session, llm_model=llm_model, log_tag=log_tag,
-            output_type=_proposal_output_type(inputs.get("dim", 1)),
+            output_type=_proposal_output_type(inputs.get("dim", 1), mode),
         )
     else:
         output, response_id = call_llm(
