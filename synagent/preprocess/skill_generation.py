@@ -40,7 +40,11 @@ from synagent.core.llm import (
     call_llm, _image_data_url, get_reasoning_effort, get_verbosity,
 )
 from synagent.main import load_inputs_yaml
-from synagent.preprocess.preprocess import REF_DIR
+from synagent.preprocess.preprocess import REF_DIR, _extract_target_value
+
+# Default of the ``target_field`` arguments: the skill is not a campaign
+# target skill (distinct from None, which means "the result is the scalar").
+NOT_TARGET = object()
 
 logger = logging.getLogger(__name__)
 
@@ -555,8 +559,15 @@ def write_skill(name, skill_md, analyze_py):
     return skill_dir
 
 
-def test_skill(skill_dir, maiml_path, ref_dir):
-    """Import the generated analyze.py and run analyze() on the sample MaiML."""
+def test_skill(skill_dir, maiml_path, ref_dir, target_field=NOT_TARGET):
+    """Import the generated analyze.py and run analyze() on the sample MaiML.
+
+    For a campaign target skill, pass ``target_field`` (the configured
+    ``target_variable.field``; None means the result itself is the scalar):
+    the result must then yield the numeric target exactly as preprocess()
+    will extract it, so a shape mismatch is caught here and retried instead
+    of crashing the loop later.
+    """
     try:
         analyze_fn = _load_analyze(skill_dir, mod_prefix="_generated")
     except Exception:
@@ -570,6 +581,20 @@ def test_skill(skill_dir, maiml_path, ref_dir):
 
     if result is None:
         return None, "analyze() returned None"
+    if target_field is not NOT_TARGET:
+        try:
+            _extract_target_value(result, target_field, skill_dir.name)
+        except ValueError as e:
+            if target_field:
+                required = (f"a dict whose key '{target_field}' holds the "
+                            f"numeric target")
+            else:
+                required = "the numeric target as a bare float"
+            return None, (
+                "analyze() result does not match the campaign target "
+                f"contract. The campaign config is fixed: change analyze() "
+                f"to return {required}.\nDetail: {e}"
+            )
     # Unified contract: a bare scalar or any JSON-serializable object.
     try:
         return float(result), None
@@ -766,13 +791,16 @@ def _agentic_generate(prompt, maiml_path, ref_dir, llm_model, max_tool_calls=20,
 
 def generate_skill(run_dir, input_yaml_rel, max_retries=2, llm_model="gpt-5.5",
                    agentic=True, max_tool_calls=20, maiml_path=None,
-                   inputs_yaml=None, extra_request=None, force_name=None):
+                   inputs_yaml=None, extra_request=None, force_name=None,
+                   target_field=NOT_TARGET):
     """Generate a skill from a representative MaiML file.
 
     ``maiml_path`` defaults to the single *.maiml in run_dir. ``inputs_yaml``
     (dict) defaults to loading ``run_dir/input_yaml_rel``. ``extra_request``
     is a free-form request from the experiment agent embedded in the prompt.
     ``force_name`` overrides the LLM-chosen skill_name (pinned target skill).
+    ``target_field`` marks a campaign target skill and makes the self-test
+    check the result shape against it (see test_skill).
     """
     run_dir = Path(run_dir)
     if maiml_path is None:
@@ -882,7 +910,8 @@ def generate_skill(run_dir, input_yaml_rel, max_retries=2, llm_model="gpt-5.5",
             created_this_run.add(name)
             skill_dir = write_skill(name, skill_md, analyze_py)
 
-            value, error = test_skill(skill_dir, maiml_path, REF_DIR)
+            value, error = test_skill(skill_dir, maiml_path, REF_DIR,
+                                      target_field=target_field)
             if error is None:
                 logger.info("Skill generation OK on attempt %d. Result: %s",
                             i + 1, value)

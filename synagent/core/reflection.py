@@ -31,6 +31,13 @@ class ReflectionOut(BaseModel):
 
 # Cap on the JSON text a single use_skill call feeds back into the turn.
 _SKILL_RESULT_MAX_CHARS = 4000
+# Structural compaction applied before that cap (see _compact_for_llm), so
+# summary fields survive regardless of key order: long arrays (e.g.
+# per-particle values) are abbreviated, floats rounded, long strings clipped.
+_COMPACT_MAX_LIST_ITEMS = 10
+_COMPACT_LIST_HEAD = 5
+_COMPACT_FLOAT_SIG_DIGITS = 4
+_COMPACT_MAX_STR_CHARS = 500
 # Cap on ad-hoc exploration calls per reflection turn, and on how much of
 # each exploration is persisted into history.json.
 _EXPLORE_BUDGET = 5
@@ -110,6 +117,31 @@ def _route_measurement(technique, run_dir, sem_stem=None, xrd_name=None):
     return candidates[0], None
 
 
+def _compact_for_llm(obj):
+    """Return a compact copy of a JSON-like skill result for the LLM.
+
+    Lists longer than _COMPACT_MAX_LIST_ITEMS keep their first
+    _COMPACT_LIST_HEAD items plus a marker giving the full length; floats are
+    rounded to _COMPACT_FLOAT_SIG_DIGITS significant digits; strings longer
+    than _COMPACT_MAX_STR_CHARS are clipped. Dict keys are never dropped.
+    """
+    if isinstance(obj, dict):
+        return {k: _compact_for_llm(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        items = [_compact_for_llm(v) for v in obj[:_COMPACT_MAX_LIST_ITEMS + 1]]
+        if len(obj) > _COMPACT_MAX_LIST_ITEMS:
+            return items[:_COMPACT_LIST_HEAD] + [
+                f"... ({len(obj) - _COMPACT_LIST_HEAD} more; "
+                f"{len(obj)} items in total)"
+            ]
+        return items
+    if isinstance(obj, float):
+        return float(f"{obj:.{_COMPACT_FLOAT_SIG_DIGITS}g}")
+    if isinstance(obj, str) and len(obj) > _COMPACT_MAX_STR_CHARS:
+        return obj[:_COMPACT_MAX_STR_CHARS] + "...[clipped]"
+    return obj
+
+
 def _execute_skill(skill_dir, maiml, skill_name, record, created=False):
     """Run a skill on a measurement file; format, log and record the result."""
     from synagent.preprocess.preprocess import REF_DIR
@@ -121,12 +153,17 @@ def _execute_skill(skill_dir, maiml, skill_name, record, created=False):
         except Exception as e:
             logger.warning("skill %s failed: %s", skill_name, e)
             return f"[error] Skill '{skill_name}' failed on {maiml.name}: {e}"
-    text = json.dumps(result, ensure_ascii=False, default=str)
+    # history.json keeps the complete result as structured data; only the
+    # tool output shown to the LLM is compacted (and, as a last resort,
+    # hard-truncated).
+    full = json.loads(json.dumps(result, ensure_ascii=False, default=str))
+    text = json.dumps(_compact_for_llm(full), ensure_ascii=False)
     if len(text) > _SKILL_RESULT_MAX_CHARS:
         text = text[:_SKILL_RESULT_MAX_CHARS] + "...[truncated]"
-    logger.info("skill %s on %s -> %d chars", skill_name, maiml.name, len(text))
-    entry = {"skill": skill_name, "maiml": maiml.name,
-             "result": json.loads(text) if not text.endswith("[truncated]") else text}
+    logger.info("skill %s on %s -> %d chars (full result: %d chars)",
+                skill_name, maiml.name, len(text),
+                len(json.dumps(full, ensure_ascii=False)))
+    entry = {"skill": skill_name, "maiml": maiml.name, "result": full}
     if created:
         entry["created"] = True
     record.append(entry)

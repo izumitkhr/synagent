@@ -100,6 +100,7 @@ def preprocess(output_dir, maiml_path, run_dir, inputs_yaml_rel,
                 inputs_yaml=inputs,
                 extra_request=extra_request,
                 force_name=pinned_skill,
+                target_field=target_field,
             )
             if test_value is None:
                 raise RuntimeError(
