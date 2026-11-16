@@ -53,10 +53,10 @@ def parse_args():
                              'older images are replaced by a text placeholder (their sem_observation text remains). '
                              'All images stay stored in session.db, so raising this later restores them.')
     # Multimodal (SEM) linkage
-    parser.add_argument('--raw_data_dir', type=str, default=None,
+    parser.add_argument('--raw_data_dir', type=str, default=r'D:\DownloadData\Ratest20MaiML',
                         help='Instrument-side folder receiving the latest MaiML/bitmap files '
                              '(incl. SampleDelivery). Searched for the SEM MaiML/bitmap linked to '
-                             'the XRD MaiML in run_dir. Required unless --no_sem is given.')
+                             'the XRD MaiML in run_dir. Ignored with --no_sem.')
     parser.add_argument('--no_sem', action='store_true',
                         help='Skip the XRD->SEM linkage step (XRD-only).')
     # Skill generation
@@ -209,12 +209,6 @@ def main():
             'Place the *.maiml file in %s and re-run.', run_dir,
         )
         return
-
-    if has_input and not args.no_sem and args.raw_data_dir is None:
-        raise SystemExit(
-            '--raw_data_dir is required to fetch the SEM image linked to the XRD '
-            'measurement. Pass it, or use --no_sem to run XRD-only.'
-        )
 
     source_maiml = None
     sem_png = None
